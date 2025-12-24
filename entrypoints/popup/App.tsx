@@ -5,6 +5,22 @@ import './App.css';
 
 function App() {
   const [count, setCount] = useState(0);
+  const [extracting, setExtracting] = useState(false);
+  const [result, setResult] = useState('');
+
+  const handleExtractData = async () => {
+    setExtracting(true);
+    setResult('');
+    
+    try {
+      const response = await browser.runtime.sendMessage({ action: 'extractData' });
+      setResult(response.result);
+    } catch (error) {
+      setResult(`Error: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setExtracting(false);
+    }
+  };
 
   return (
     <>
@@ -21,6 +37,15 @@ function App() {
         <button onClick={() => setCount((count) => count + 1)}>
           count is {count}
         </button>
+        <button onClick={handleExtractData} disabled={extracting}>
+          {extracting ? 'Extracting...' : 'Extract Page Data'}
+        </button>
+        {result && (
+          <div style={{ marginTop: '20px', textAlign: 'left', whiteSpace: 'pre-wrap' }}>
+            <strong>Result:</strong>
+            <p>{result}</p>
+          </div>
+        )}
         <p>
           Edit <code>src/App.tsx</code> and save to test HMR
         </p>

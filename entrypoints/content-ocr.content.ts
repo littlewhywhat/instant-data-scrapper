@@ -88,12 +88,18 @@ async function extractTextFromImage(
   console.log('Trusted Types detected:', hasTrustedTypes);
   
   try {
-    const worker = await createWorker('eng', 1, {
-      workerPath: hasTrustedTypes ? undefined : workerPath,
+    const config = hasTrustedTypes ? {
+      workerPath: 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/worker.min.js',
       langPath: 'https://tessdata.projectnaptha.com/4.0.0',
-      corePath: hasTrustedTypes ? undefined : corePath,
-      workerBlobURL: false,
-    });
+      corePath: 'https://cdn.jsdelivr.net/npm/tesseract.js-core@5/tesseract-core.wasm.js',
+    } : {
+      workerPath,
+      langPath: 'https://tessdata.projectnaptha.com/4.0.0',
+      corePath,
+    };
+    
+    console.log('Using worker config:', { hasCDN: hasTrustedTypes });
+    const worker = await createWorker('eng', 1, config);
     console.log('Tesseract worker created');
     
     console.log('Starting OCR recognition...');

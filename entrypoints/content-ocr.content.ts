@@ -33,14 +33,11 @@ export default defineContentScript({
 
 async function extractTextFromImage(dataUrl: string): Promise<string> {
   console.log('Creating Tesseract worker...');
-  const worker = await createWorker('eng', 1, {
-    workerPath: 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/worker.min.js',
-    langPath: 'https://tessdata.projectnaptha.com/4.0.0',
-    corePath: 'https://cdn.jsdelivr.net/npm/tesseract.js-core@5/tesseract-core.wasm.js',
-  });
-  console.log('Tesseract worker created');
-
+  
   try {
+    const worker = await createWorker('eng');
+    console.log('Tesseract worker created');
+    
     console.log('Starting OCR recognition...');
     const { data: { text } } = await worker.recognize(dataUrl);
     console.log('OCR recognition complete, text length:', text.length);
@@ -48,7 +45,6 @@ async function extractTextFromImage(dataUrl: string): Promise<string> {
     return text;
   } catch (error) {
     console.error('Error during OCR:', error);
-    await worker.terminate();
     throw error;
   }
 }

@@ -1,4 +1,4 @@
-import Tesseract from 'tesseract.js';
+import { createWorker } from 'tesseract.js';
 
 declare const ai: {
   languageModel: {
@@ -24,25 +24,33 @@ export default defineBackground(() => {
 });
 
 async function handleExtractData() {
-  return new Promise((resolve, reject) => {
-    browser.tabs.captureVisibleTab({ format: "png" }, async (dataUrl) => {
-      try {
-        const { data: { text } } = await Tesseract.recognize(dataUrl, 'eng', {
-          workerPath: 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/worker.min.js',
-          langPath: 'https://tessdata.projectnaptha.com/4.0.0',
-          corePath: 'https://cdn.jsdelivr.net/npm/tesseract.js-core@5/tesseract-core.wasm.js',
-        });
-        
-        const session = await ai.languageModel.create();
-        
-        const result = await session.prompt(
-          `Analyze this text extracted from a webpage screenshot and provide a summary of the data:\n\n${text}`
-        );
+  const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
+  
+  if (!tab.id) {
+    throw new Error('No active tab found');
+  }
 
-        resolve(result);
-      } catch (error) {
-        reject(error);
-      }
-    });
+  const dataUrl = await browser.tabs.captureVisibleTab({ format: "png" });
+  
+  const worker = await createWorker('eng', 1, {
+    workerPath: 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/worker.min.js',
+    langPath: 'https://tessdata.projectnaptha.com/4.0.0',
+    corePath: 'https://cdn.jsdelivr.net/npm/tesseract.js-core@5/tesseract-core.wasm.js',
   });
+
+  try {
+    const { data: { text } } = await worker.recognize(dataUrl);
+    await worker.terminate();
+    
+    const session = await ai.languageModel.create();
+    
+    const result = await session.prompt(
+      `Analyze this text extracted from a webpage screenshot and provide a summary of the data:\n\n${text}`
+    );
+
+    return result;
+  } catch (error) {
+    await worker.terminate();
+    throw error;
+  }
 }

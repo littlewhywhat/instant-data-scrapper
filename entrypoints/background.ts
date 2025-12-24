@@ -1,9 +1,9 @@
-declare const ai: {
-  languageModel: {
-    create: () => Promise<{
-      prompt: (text: string) => Promise<string>;
-    }>;
-  };
+declare const LanguageModel: {
+  create: (options?: {
+    monitor?: (m: any) => void;
+  }) => Promise<{
+    prompt: (text: string) => Promise<string>;
+  }>;
 };
 
 export default defineBackground(() => {
@@ -53,8 +53,33 @@ async function handleExtractData() {
     throw new Error(response.error);
   }
 
-  const result = response.text;
-  console.log('Result received:', result.substring(0, 200) + '...');
+  const text = response.text;
+  console.log('Extracted text:', text.substring(0, 200) + '...');
   
-  return result;
+  if (typeof LanguageModel !== 'undefined') {
+    try {
+      console.log('Creating AI session...');
+      const session = await LanguageModel.create({
+        monitor(m) {
+          m.addEventListener('downloadprogress', (e: any) => {
+            console.log(`AI Model Downloaded ${e.loaded * 100}%`);
+          });
+        },
+      });
+      
+      console.log('Sending prompt to AI...');
+      const result = await session.prompt(
+        `Analyze this text extracted from a webpage screenshot and provide a summary of the data:\n\n${text}`
+      );
+      
+      console.log('AI result received:', result.substring(0, 200) + '...');
+      return result;
+    } catch (error) {
+      console.error('AI processing failed:', error);
+      return `Extracted text from screenshot (AI failed):\n\n${text}`;
+    }
+  } else {
+    console.log('LanguageModel not available, returning raw text');
+    return `Extracted text from screenshot:\n\n${text}`;
+  }
 }

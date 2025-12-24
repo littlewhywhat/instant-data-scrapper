@@ -1,23 +1,19 @@
 import { createWorker } from 'tesseract.js';
 
-declare global {
-  interface Window {
-    ai?: {
-      languageModel: {
-        create: () => Promise<{
-          prompt: (text: string) => Promise<string>;
-        }>;
-      };
-    };
-  }
-}
+declare const LanguageModel: {
+  create: (options?: {
+    monitor?: (m: any) => void;
+  }) => Promise<{
+    prompt: (text: string) => Promise<string>;
+  }>;
+};
 
 export default defineContentScript({
   matches: ["<all_urls>"],
   world: 'MAIN',
   main() {
     console.log('OCR content script loaded (MAIN world)');
-    console.log('AI available:', typeof window.ai !== 'undefined');
+    console.log('AI available:', typeof LanguageModel !== 'undefined');
     
     window.addEventListener('message', async (event) => {
       if (event.source !== window) return;
@@ -34,10 +30,16 @@ export default defineContentScript({
           
           let result = text;
           
-          if (typeof window.ai !== 'undefined' && window.ai?.languageModel) {
+          if (typeof LanguageModel !== 'undefined') {
             try {
               console.log('AI available, creating session...');
-              const session = await window.ai.languageModel.create();
+              const session = await LanguageModel.create({
+                monitor(m) {
+                  m.addEventListener('downloadprogress', (e: any) => {
+                    console.log(`AI Model Downloaded ${e.loaded * 100}%`);
+                  });
+                },
+              });
               console.log('AI session created, sending prompt...');
               result = await session.prompt(
                 `Analyze this text extracted from a webpage screenshot and provide a summary of the data:\n\n${text}`

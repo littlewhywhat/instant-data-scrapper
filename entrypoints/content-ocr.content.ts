@@ -8,6 +8,12 @@ declare const LanguageModel: {
   }>;
 };
 
+declare global {
+  interface Window {
+    trustedTypes?: any;
+  }
+}
+
 export default defineContentScript({
   matches: ["<all_urls>"],
   world: 'MAIN',
@@ -78,11 +84,15 @@ async function extractTextFromImage(
 ): Promise<string> {
   console.log('Creating Tesseract worker...');
   
+  const hasTrustedTypes = typeof window.trustedTypes !== 'undefined';
+  console.log('Trusted Types detected:', hasTrustedTypes);
+  
   try {
     const worker = await createWorker('eng', 1, {
-      workerPath,
+      workerPath: hasTrustedTypes ? undefined : workerPath,
       langPath: 'https://tessdata.projectnaptha.com/4.0.0',
-      corePath,
+      corePath: hasTrustedTypes ? undefined : corePath,
+      workerBlobURL: false,
     });
     console.log('Tesseract worker created');
     

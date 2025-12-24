@@ -1,8 +1,8 @@
 import { createWorker } from 'tesseract.js';
+import { browser } from 'wxt/browser';
 
 export default defineContentScript({
   matches: ["<all_urls>"],
-  world: "MAIN",
   main() {
     console.log('Content script loaded and ready');
     

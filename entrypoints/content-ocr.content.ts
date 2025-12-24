@@ -35,7 +35,11 @@ async function extractTextFromImage(dataUrl: string): Promise<string> {
   console.log('Creating Tesseract worker...');
   
   try {
-    const worker = await createWorker('eng');
+    const worker = await createWorker('eng', 1, {
+      workerPath: browser.runtime.getURL('/tesseract/worker.min.js' as any),
+      langPath: 'https://tessdata.projectnaptha.com/4.0.0',
+      corePath: browser.runtime.getURL('/tesseract/tesseract-core.wasm.js' as any),
+    });
     console.log('Tesseract worker created');
     
     console.log('Starting OCR recognition...');

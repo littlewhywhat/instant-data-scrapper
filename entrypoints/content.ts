@@ -4,11 +4,18 @@ export default defineContentScript({
   matches: ["<all_urls>"],
   world: "MAIN",
   main() {
+    console.log('Content script loaded and ready');
+    
     browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
+      console.log('Content script received message:', message.action);
+      
       if (message.action === 'extractTextFromImage') {
+        console.log('Starting OCR, image size:', message.dataUrl?.length);
         extractTextFromImage(message.dataUrl).then(text => {
+          console.log('OCR complete, text length:', text.length);
           sendResponse({ text });
         }).catch(error => {
+          console.error('OCR error:', error);
           sendResponse({ error: error.message });
         });
         return true;
@@ -108,17 +115,22 @@ async function loadMore(connectionList: HTMLElement) {
 }
 
 async function extractTextFromImage(dataUrl: string): Promise<string> {
+  console.log('Creating Tesseract worker...');
   const worker = await createWorker('eng', 1, {
     workerPath: 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/worker.min.js',
     langPath: 'https://tessdata.projectnaptha.com/4.0.0',
     corePath: 'https://cdn.jsdelivr.net/npm/tesseract.js-core@5/tesseract-core.wasm.js',
   });
+  console.log('Tesseract worker created');
 
   try {
+    console.log('Starting OCR recognition...');
     const { data: { text } } = await worker.recognize(dataUrl);
+    console.log('OCR recognition complete');
     await worker.terminate();
     return text;
   } catch (error) {
+    console.error('Error during OCR:', error);
     await worker.terminate();
     throw error;
   }

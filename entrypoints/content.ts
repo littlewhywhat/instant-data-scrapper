@@ -145,7 +145,9 @@ function extractTextFromImageViaMainWorld(dataUrl: string): Promise<string> {
     window.postMessage({
       type: 'EXTRACT_TEXT_FROM_IMAGE',
       requestId,
-      dataUrl
+      dataUrl,
+      workerPath: browser.runtime.getURL('/tesseract/worker.min.js' as any),
+      corePath: browser.runtime.getURL('/tesseract/tesseract-core.wasm.js' as any),
     }, '*');
   });
 }

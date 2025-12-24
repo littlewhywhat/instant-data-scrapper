@@ -53,27 +53,8 @@ async function handleExtractData() {
     throw new Error(response.error);
   }
 
-  const text = response.text;
-  console.log('Extracted text:', text.substring(0, 200) + '...');
+  const result = response.text;
+  console.log('Result received:', result.substring(0, 200) + '...');
   
-  if (typeof ai === 'undefined' || !ai?.languageModel) {
-    console.log('Chrome AI not available, returning raw text');
-    return `Extracted text from screenshot:\n\n${text}`;
-  }
-  
-  try {
-    console.log('Creating AI session...');
-    const session = await ai.languageModel.create();
-    
-    console.log('Sending prompt to AI...');
-    const result = await session.prompt(
-      `Analyze this text extracted from a webpage screenshot and provide a summary of the data:\n\n${text}`
-    );
-    
-    console.log('AI result received:', result.substring(0, 200) + '...');
-    return result;
-  } catch (error) {
-    console.error('AI processing failed:', error);
-    return `Extracted text from screenshot (AI unavailable):\n\n${text}`;
-  }
+  return result;
 }

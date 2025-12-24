@@ -1,10 +1,23 @@
 import { createWorker } from 'tesseract.js';
 
+declare global {
+  interface Window {
+    ai?: {
+      languageModel: {
+        create: () => Promise<{
+          prompt: (text: string) => Promise<string>;
+        }>;
+      };
+    };
+  }
+}
+
 export default defineContentScript({
   matches: ["<all_urls>"],
   world: 'MAIN',
   main() {
     console.log('OCR content script loaded (MAIN world)');
+    console.log('AI available:', typeof window.ai !== 'undefined');
     
     window.addEventListener('message', async (event) => {
       if (event.source !== window) return;
@@ -18,10 +31,31 @@ export default defineContentScript({
             event.data.workerPath,
             event.data.corePath
           );
+          
+          let result = text;
+          
+          if (typeof window.ai !== 'undefined' && window.ai?.languageModel) {
+            try {
+              console.log('AI available, creating session...');
+              const session = await window.ai.languageModel.create();
+              console.log('AI session created, sending prompt...');
+              result = await session.prompt(
+                `Analyze this text extracted from a webpage screenshot and provide a summary of the data:\n\n${text}`
+              );
+              console.log('AI analysis complete');
+            } catch (aiError) {
+              console.error('AI processing failed:', aiError);
+              result = `Extracted text from screenshot (AI failed):\n\n${text}`;
+            }
+          } else {
+            console.log('AI not available, returning raw text');
+            result = `Extracted text from screenshot:\n\n${text}`;
+          }
+          
           window.postMessage({
             type: 'EXTRACT_TEXT_FROM_IMAGE_RESPONSE',
             requestId: event.data.requestId,
-            text
+            text: result
           }, '*');
         } catch (error) {
           window.postMessage({

@@ -1,5 +1,3 @@
-import { createWorker } from 'tesseract.js';
-
 declare const ai: {
   languageModel: {
     create: () => Promise<{
@@ -16,6 +14,7 @@ export default defineBackground(() => {
       handleExtractData().then(result => {
         sendResponse({ result });
       }).catch(error => {
+        console.log({ error });
         sendResponse({ result: `Error: ${error.message}` });
       });
       return true;
@@ -32,25 +31,22 @@ async function handleExtractData() {
 
   const dataUrl = await browser.tabs.captureVisibleTab({ format: "png" });
   
-  const worker = await createWorker('eng', 1, {
-    workerPath: 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/worker.min.js',
-    langPath: 'https://tessdata.projectnaptha.com/4.0.0',
-    corePath: 'https://cdn.jsdelivr.net/npm/tesseract.js-core@5/tesseract-core.wasm.js',
+  const response = await browser.tabs.sendMessage(tab.id, {
+    action: 'extractTextFromImage',
+    dataUrl
   });
 
-  try {
-    const { data: { text } } = await worker.recognize(dataUrl);
-    await worker.terminate();
-    
-    const session = await ai.languageModel.create();
-    
-    const result = await session.prompt(
-      `Analyze this text extracted from a webpage screenshot and provide a summary of the data:\n\n${text}`
-    );
-
-    return result;
-  } catch (error) {
-    await worker.terminate();
-    throw error;
+  if (response.error) {
+    throw new Error(response.error);
   }
+
+  const text = response.text;
+  
+  const session = await ai.languageModel.create();
+  
+  const result = await session.prompt(
+    `Analyze this text extracted from a webpage screenshot and provide a summary of the data:\n\n${text}`
+  );
+
+  return result;
 }

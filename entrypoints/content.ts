@@ -1,7 +1,19 @@
+import { createWorker } from 'tesseract.js';
+
 export default defineContentScript({
-  matches: ["*://*.linkedin.com/*"],
+  matches: ["<all_urls>"],
   world: "MAIN",
   main() {
+    browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
+      if (message.action === 'extractTextFromImage') {
+        extractTextFromImage(message.dataUrl).then(text => {
+          sendResponse({ text });
+        }).catch(error => {
+          sendResponse({ error: error.message });
+        });
+        return true;
+      }
+    });
     // setTimeout(() => {
     //   console.log("Hello content.");
     //   const connectionList = window.document.querySelector(
@@ -93,4 +105,21 @@ async function loadMore(connectionList: HTMLElement) {
     );
   }
   console.log("Loaded as much as i can", { cnt, loadMoreButton });
+}
+
+async function extractTextFromImage(dataUrl: string): Promise<string> {
+  const worker = await createWorker('eng', 1, {
+    workerPath: 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/worker.min.js',
+    langPath: 'https://tessdata.projectnaptha.com/4.0.0',
+    corePath: 'https://cdn.jsdelivr.net/npm/tesseract.js-core@5/tesseract-core.wasm.js',
+  });
+
+  try {
+    const { data: { text } } = await worker.recognize(dataUrl);
+    await worker.terminate();
+    return text;
+  } catch (error) {
+    await worker.terminate();
+    throw error;
+  }
 }

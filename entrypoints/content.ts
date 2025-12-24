@@ -1,9 +1,12 @@
-import { browser } from 'wxt/browser';
-
 export default defineContentScript({
   matches: ["<all_urls>"],
-  main() {
+  world: 'ISOLATED',
+  main(ctx) {
     console.log('Content script loaded (isolated world)');
+    
+    ctx.addEventListener(window, 'message', (event) => {
+      console.log('Received window message:', event.data.type);
+    });
     
     browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
       console.log('Content script received message:', message.action);

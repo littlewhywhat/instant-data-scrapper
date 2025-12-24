@@ -1,17 +1,16 @@
-import { createWorker } from 'tesseract.js';
 import { browser } from 'wxt/browser';
 
 export default defineContentScript({
   matches: ["<all_urls>"],
   main() {
-    console.log('Content script loaded and ready');
+    console.log('Content script loaded (isolated world)');
     
     browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
       console.log('Content script received message:', message.action);
       
       if (message.action === 'extractTextFromImage') {
-        console.log('Starting OCR, image size:', message.dataUrl?.length);
-        extractTextFromImage(message.dataUrl).then(text => {
+        console.log('Forwarding OCR request to MAIN world script');
+        extractTextFromImageViaMainWorld(message.dataUrl).then(text => {
           console.log('OCR complete, text length:', text.length);
           sendResponse({ text });
         }).catch(error => {
@@ -114,24 +113,36 @@ async function loadMore(connectionList: HTMLElement) {
   console.log("Loaded as much as i can", { cnt, loadMoreButton });
 }
 
-async function extractTextFromImage(dataUrl: string): Promise<string> {
-  console.log('Creating Tesseract worker...');
-  const worker = await createWorker('eng', 1, {
-    workerPath: 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/worker.min.js',
-    langPath: 'https://tessdata.projectnaptha.com/4.0.0',
-    corePath: 'https://cdn.jsdelivr.net/npm/tesseract.js-core@5/tesseract-core.wasm.js',
+function extractTextFromImageViaMainWorld(dataUrl: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const requestId = Math.random().toString(36).substring(7);
+    
+    const handleResponse = (event: MessageEvent) => {
+      if (event.source !== window) return;
+      
+      if (event.data.type === 'EXTRACT_TEXT_FROM_IMAGE_RESPONSE' && 
+          event.data.requestId === requestId) {
+        window.removeEventListener('message', handleResponse);
+        
+        if (event.data.error) {
+          reject(new Error(event.data.error));
+        } else {
+          resolve(event.data.text);
+        }
+      }
+    };
+    
+    window.addEventListener('message', handleResponse);
+    
+    setTimeout(() => {
+      window.removeEventListener('message', handleResponse);
+      reject(new Error('OCR request timeout'));
+    }, 60000);
+    
+    window.postMessage({
+      type: 'EXTRACT_TEXT_FROM_IMAGE',
+      requestId,
+      dataUrl
+    }, '*');
   });
-  console.log('Tesseract worker created');
-
-  try {
-    console.log('Starting OCR recognition...');
-    const { data: { text } } = await worker.recognize(dataUrl);
-    console.log('OCR recognition complete');
-    await worker.terminate();
-    return text;
-  } catch (error) {
-    console.error('Error during OCR:', error);
-    await worker.terminate();
-    throw error;
-  }
 }

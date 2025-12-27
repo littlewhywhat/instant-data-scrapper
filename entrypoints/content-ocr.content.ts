@@ -8,12 +8,6 @@ declare const LanguageModel: {
   }>;
 };
 
-declare global {
-  interface Window {
-    trustedTypes?: any;
-  }
-}
-
 export default defineContentScript({
   matches: ["<all_urls>"],
   world: 'MAIN',
@@ -84,22 +78,12 @@ async function extractTextFromImage(
 ): Promise<string> {
   console.log('Creating Tesseract worker...');
   
-  const hasTrustedTypes = typeof window.trustedTypes !== 'undefined';
-  console.log('Trusted Types detected:', hasTrustedTypes);
-  
   try {
-    const config = hasTrustedTypes ? {
-      workerPath: 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/worker.min.js',
-      langPath: 'https://tessdata.projectnaptha.com/4.0.0',
-      corePath: 'https://cdn.jsdelivr.net/npm/tesseract.js-core@5/tesseract-core.wasm.js',
-    } : {
+    const worker = await createWorker('eng', 1, {
       workerPath,
       langPath: 'https://tessdata.projectnaptha.com/4.0.0',
       corePath,
-    };
-    
-    console.log('Using worker config:', { hasCDN: hasTrustedTypes });
-    const worker = await createWorker('eng', 1, config);
+    });
     console.log('Tesseract worker created');
     
     console.log('Starting OCR recognition...');

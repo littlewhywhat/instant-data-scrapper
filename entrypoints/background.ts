@@ -1,10 +1,3 @@
-declare const LanguageModel: {
-  create: (options?: {
-    monitor?: (m: any) => void;
-  }) => Promise<{
-    prompt: (text: string) => Promise<string>;
-  }>;
-};
 
 export default defineBackground(() => {
   console.log("Hello background!", { id: browser.runtime.id });
@@ -34,7 +27,7 @@ async function handleExtractData() {
 
   console.log('Capturing screenshot...');
   const dataUrl = await browser.tabs.captureVisibleTab({ format: "png" });
-  console.log('Screenshot captured, size:', dataUrl.length);
+  console.log('Screenshot captured, size:', { length: dataUrl.length, dataUrl });
   
   console.log('Sending message to content script for OCR...');
   let response;
